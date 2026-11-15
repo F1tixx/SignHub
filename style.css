@@ -134,3 +134,9 @@ html.gated body>main,html.gated .tabbar,html.gated #console{display:none!importa
 .gate-about b{color:var(--text)}
 .gate-about a{color:var(--accent)}
 .gate-continue{display:block;width:100%;margin-top:34px;background:none;border:1px solid var(--line);color:var(--muted)}
+
+/* progress bar: subtle moving highlight while a job is running */
+.bar{position:relative;overflow:hidden}
+.bar.active::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,#ffffff55,transparent);animation:bar-shine 1.3s linear infinite}
+@keyframes bar-shine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+@media(prefers-reduced-motion:reduce){.bar.active::after{animation:none}}
