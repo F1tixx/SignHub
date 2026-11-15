@@ -43,17 +43,11 @@
         <div class="fold-body"><input id="prov-url" type="url" placeholder="https://example.com/profile.mobileprovision"></div>
       </details>
       <div class="field" style="margin-top:14px">
-        <label for="pw-select">P12 password</label>
-        <select id="pw-select">
-          <option value="AppleP12">AppleP12</option>
-          <option value="applejr.net">applejr.net</option>
-          <option value="__other">Other…</option>
-        </select>
-        <div id="pw-other" class="pw-other hidden">
-          <input id="p12-password" type="password" autocomplete="off" placeholder="Type the P12 password">
-          <div class="hint">Or upload a password.txt file:</div>
-          <input id="pw-file" type="file" accept=".txt,text/plain">
-        </div>
+        <label for="pw-file">P12 password (password.txt)</label>
+        <input id="pw-file" type="file" accept=".txt,text/plain">
+        <details class="fold"><summary>Or type the password manually</summary>
+          <div class="fold-body"><input id="p12-password" type="password" autocomplete="off" placeholder="Type the P12 password"></div>
+        </details>
       </div>
       <div class="hint">For each certificate item, provide either a file or a URL, not both. URLs must be accessible to the signing backend.</div>
     </div>
@@ -224,24 +218,20 @@
     return message;
   }
 
-  /* ---------- Password dropdown ---------- */
+  /* ---------- Password (password.txt or typed) ---------- */
+  let pwFromFile = '';
   function getPassword() {
-    const v = $('pw-select').value;
-    return v === '__other' ? $('p12-password').value : v;
+    const typed = $('p12-password').value;
+    if (pwFromFile && typed) throw new Error('Use either password.txt or the typed password, not both.');
+    return pwFromFile || typed;
   }
-  $('pw-select').addEventListener('change', () => {
-    const other = $('pw-select').value === '__other';
-    $('pw-other').classList.toggle('hidden', !other);
-    log(other ? 'Password: custom (type or upload password.txt).' : `Password preset selected: ${$('pw-select').value}`);
-    if (other) $('p12-password').focus();
-  });
   $('pw-file').addEventListener('change', async event => {
     const file = event.target.files[0];
+    pwFromFile = '';
     if (!file) return;
     try {
-      const text = (await file.text()).replace(/^\uFEFF/, '').split(/\r?\n/)[0].trim();
-      $('p12-password').value = text;
-      log(`Loaded password from ${file.name} (${text.length} characters).`, 'ok');
+      pwFromFile = (await file.text()).replace(/^\uFEFF/, '').split(/\r?\n/)[0].trim();
+      log(`Loaded password from ${file.name}.`, 'ok');
     } catch (e) { log(`Could not read ${file.name}: ${e.message}`, 'err'); }
   });
 
@@ -252,14 +242,14 @@
 
     if ((!p12 && !p12Url) || (p12 && p12Url)) throw new Error('Provide either a P12 file or a P12 URL.');
     if ((!profile && !profileUrl) || (profile && profileUrl)) throw new Error('Provide either a MobileProvision file or a MobileProvision URL.');
-    if (!password) throw new Error('Enter the P12 password (type it or upload password.txt).');
+    if (!password) throw new Error('Provide the P12 password (upload password.txt or type it).');
 
     if (p12) form.append('p12', p12, p12.name);
     else form.append('p12_url', p12Url);
     if (profile) form.append('mobileprovision', profile, profile.name);
     else form.append('mobileprovision_url', profileUrl);
     form.append('p12_password', password);
-    log(`Certificate: ${p12 ? 'file ' + p12.name : 'URL'}, profile: ${profile ? 'file ' + profile.name : 'URL'}, password: ${'•'.repeat(Math.min(password.length, 12))}`);
+    log(`Certificate: ${p12 ? 'file ' + p12.name : 'URL'}, profile: ${profile ? 'file ' + profile.name : 'URL'}, password: [hidden]`);
   }
   function buildForm(uploadUrl, ipaSize, ipaUrl) {
     const form = new FormData();
@@ -508,7 +498,7 @@
     });
     document.querySelectorAll('details.fold').forEach(d => { d.open = false; });
     $('sideload-app').value = ''; selectedTweaks = []; $('tweak-list').textContent = 'No tweaks selected.';
-    $('pw-select').value = 'AppleP12'; $('pw-other').classList.add('hidden');
+    pwFromFile = '';
     stopBeat(); progress(0, true); status('Ready.'); busy(false);
   }
 
