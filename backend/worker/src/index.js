@@ -114,10 +114,22 @@ export default {
         const result={job_id:id,state:row.state,error:row.error || null,expires_at:row.expires_at};
         if(row.state==="done") {
           result.download_url=await signedGet(env,`jobs/${id}/signed.ipa`,"signed.ipa");
-          result.manifest_url=await signedGet(env,`jobs/${id}/manifest.plist`,"manifest.plist");
+          const token=owner;
+          result.manifest_url=`${url.origin}/v1/jobs/${id}/manifest?token=${encodeURIComponent(token)}`;
           result.install_url=`itms-services://?action=download-manifest&url=${encodeURIComponent(result.manifest_url)}`;
         }
         return json(result,200,env);
+      }
+      const manifestMatch=path.match(/^\\/v1\\/jobs\\/([A-Za-z0-9_-]+)\\/manifest$/);
+      if(manifestMatch && request.method==="GET") {
+        const id=manifestMatch[1], owner=url.searchParams.get("token") || "";
+        const row=await env.DB.prepare("SELECT * FROM jobs WHERE id=?").bind(id).first();
+        if(!row || row.state!=="done" || row.expires_at < Date.now()/1000 || !owner || await sha(owner+env.OWNER_TOKEN_PEPPER)!==row.owner_hash) return fail("Manifest not found",404,env);
+        const ipa=await signedGet(env,`jobs/${id}/signed.ipa`,"signed.ipa");
+        const plist=`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict><key>items</key><array><dict><key>assets</key><array><dict><key>kind</key><string>software-package</string><key>url</key><string>${ipa.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</string></dict></array><key>metadata</key><dict><key>bundle-identifier</key><string>com.signhub.signed</string><key>bundle-version</key><string>1.0</string><key>kind</key><string>software</string><key>title</key><string>Signed app</string></dict></dict></array></dict></plist>`;
+        return new Response(plist,{headers:{...cors(env),"Content-Type":"application/xml","Cache-Control":"no-store"}});
       }
       if (path === "/internal/claim" && request.method === "POST") {
         await verifyRunner(request,env);
@@ -129,11 +141,9 @@ export default {
         const inputs={};
         for(const [slot,item] of Object.entries(meta.uploads)) inputs[slot]=await signedGet(env,item.key,`${slot}.bin`);
         const resultKey=`jobs/${job_id}/signed.ipa`;
-        const manifestKey=`jobs/${job_id}/manifest.plist`;
         const resultPut=await signedPut(env,resultKey,"application/octet-stream");
-        const manifestPut=await signedPut(env,manifestKey,"application/xml");
         await env.DB.prepare("UPDATE jobs SET state='running' WHERE id=?").bind(job_id).run();
-        return json({job_id,inputs,password:meta.password,settings:meta.settings,result_put:resultPut,manifest_put:manifestPut,expires_at:row.expires_at},200,env);
+        return json({job_id,inputs,password:meta.password,settings:meta.settings,result_put:resultPut,expires_at:row.expires_at},200,env);
       }
       if (path === "/internal/finish" && request.method === "POST") {
         await verifyRunner(request,env);
