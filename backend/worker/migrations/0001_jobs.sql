@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   created_at INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
   uploads_json TEXT NOT NULL,
-  error TEXT
+  error TEXT,
+  app_info_json TEXT
 );
 CREATE INDEX IF NOT EXISTS jobs_expiry_idx ON jobs(expires_at);
