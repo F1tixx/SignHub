@@ -69,7 +69,7 @@ jobs:
           [[ -n "$BUNDLE_ID" ]] && ARGS+=(-b "$BUNDLE_ID")
           [[ -n "$APP_NAME" ]] && ARGS+=(-n "$APP_NAME")
           [[ -n "$VERSION" ]] && ARGS+=(-v "$VERSION")
-          "$RUNNER_TEMP/zsign/zsign" "${ARGS[@]}"
+          "$RUNNER_TEMP/zsign/zsign" "${ARGS[@]}" "$IPA"
           test -s "$OUT"
           echo "signed=$OUT" >> "$GITHUB_OUTPUT"
       - name: Upload private result
