@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>FullScreen</key>
+			<true/>
+			<key>Icon</key>
+			<data>
+			iVBORw0KGgoAAAANSUhEUgAAALQAAAC0AgMAAABAo+6hAAAADFBM
+			VEVtjP8/UI4QExsQExpACmOZAAACQElEQVR42u2XvU4CQRDH/3sC
+			JlpIQdQICY09r3C+wTXaSGnjU/gKFMY3sFALeQPwDaisLUBFKTAx
+			kQPkLLgvbmfZuZhoM1fdZX83Nzcf/9lVAXJcDoQWWmihhRZaaKH/
+			hb46UqUmiQf6dQkAOCVWCNpfmlEdFt0Kv1rl0H7kI2Fcp3vxL9Xt
+			9MKN6ZKd9pNw6a5o8X5PBbdtzc4odd+2ZsdNrW1mF1VmZ7rimvNt
+			8SQwPlD0bIXuWuj5yhOP3r1xSTobk6cwLX0AQMOSy14YuW+yUsje
+			KQCOy+m0MQBUALjsviwD8OJ3OT1f/r1CFEwLB7cAihx6DKB4zPVk
+			lEurvrh0GQAW3Vyq2cxjG88G49lO+1jiJZ9lO4zo1OBLpiYn0Tfv
+			CUHWen6xEcmaz/AkrutpjRPBuK7JuARUYwIA9hhqP0kMdax/mZa2
+			at/qt2rFty+MCfiZrF3Y505qlNQZE7Bv1m+iYqstUnBNk9t3TTGk
+			uqF0bVJkyna0L7BrbBgXjw4KTUeub9syH16DGgBsTtb35Wq5ZGmT
+			aqbKhWF76crGnKnIlVz6XeTQD0op5ebS2DEAlYvOtzMN2Bo7Ms0Z
+			42yYsW0HXeCVnGGkVDXCXt7JrBbIFD7evXXJgWwWNqJ3nLUJ9yx/
+			qWh55uwelVV9vLV1aFZ7vYl12/up+0Or7QXWDAcYDxmAwzg3JGqv
+			H0r0GtyKY3jGUYhBzTiNifo+CI2f885pQ9NRitbYoQd1wtlDyCla
+			aKGFFlooooU+i/oH/qhSim8/E+tAAAAAElFTkSuQmCC
+			</data>
+			<key>IgnoreManifestScope</key>
+			<false/>
+			<key>IsRemovable</key>
+			<true/>
+			<key>Label</key>
+			<string>SignHub</string>
+			<key>PayloadDisplayName</key>
+			<string>SignHub</string>
+			<key>PayloadIdentifier</key>
+			<string>com.signhub.webapp.clip</string>
+			<key>PayloadOrganization</key>
+			<string>SignHub</string>
+			<key>PayloadType</key>
+			<string>com.apple.webClip.managed</string>
+			<key>PayloadUUID</key>
+			<string>4300AB71-5B22-4688-8179-BF5DCE0A9295</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Precomposed</key>
+			<true/>
+			<key>URL</key>
+			<string>https://suleyman13900.github.io/SignHub/</string>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Adds SignHub to your Home Screen as a web app.</string>
+	<key>PayloadDisplayName</key>
+	<string>SignHub Web App</string>
+	<key>PayloadIdentifier</key>
+	<string>com.signhub.webapp</string>
+	<key>PayloadOrganization</key>
+	<string>SignHub</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>CCADB668-ECFC-4520-A2FA-3F0DFE27EB5E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
