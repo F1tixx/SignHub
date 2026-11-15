@@ -1,34 +1,46 @@
-# SignHub secure broker (deployment scaffold)
+# SignHub private signing broker
 
-This folder contains the Cloudflare Worker broker. It is not live until the Cloudflare resources and secrets below are configured.
+This is a deployable Cloudflare Worker + D1 + private R2 broker. The repository now includes a frontend integration and GitHub Actions workflow, but the service is **not live** until the Cloudflare resources, GitHub App and secrets are configured.
 
-## Resources
-- Cloudflare Worker: `signhub-broker`
-- D1 database: `signhub-jobs` (apply `migrations/0001_jobs.sql`)
-- R2 bucket: `signhub-private-jobs`
-- GitHub App installed on `suleyman13900/SignHub` with **Actions: read/write** and **Metadata: read** permissions.
+## Architecture and privacy
+- Browser uploads IPA, P12 and MobileProvision directly to private R2 using 15-minute presigned PUT URLs.
+- D1 stores an opaque job ID, a hash of the owner capability, a hash of the client IP for throttling, state and a 24-hour expiry.
+- The P12 password and settings are AES-256-GCM encrypted in R2. The raw password is not stored in D1.
+- A GitHub App dispatches the workflow; no personal access token is placed in the browser or repository.
+- A macOS Actions runner must present a GitHub OIDC token with the expected issuer, audience, repository, ref and workflow identity before it can claim or complete a job.
+- Output is stored in private R2. The owner capability protects status and manifest retrieval; the download URL is a one-hour bearer URL. Anyone who receives a valid link can use it until it expires.
+- The scheduled cleanup removes job objects and D1 rows after 24 hours. Per-IP throttle: three job creations per hour (IP is hashed before storage).
 
-## Required Worker secrets
-Set with `wrangler secret put NAME` (never commit values):
-- `R2_ACCOUNT_ID`
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
-- `GITHUB_APP_PRIVATE_KEY` (PEM)
-- `JOB_ENCRYPTION_KEY` (base64-encoded 32 random bytes)
-- `OWNER_TOKEN_PEPPER` (long random value)
+## Deploy Cloudflare resources
+1. Create an R2 bucket named `signhub-private-jobs`.
+2. Create a D1 database named `signhub-jobs`; copy its database ID into `wrangler.toml`.
+3. From `backend/worker`, run `npm install`, then `npx wrangler d1 migrations apply signhub-jobs --remote` and `npx wrangler deploy`.
+4. Set Worker secrets (never commit these):
+   - `R2_ACCOUNT_ID`
+   - `R2_ACCESS_KEY_ID`
+   - `R2_SECRET_ACCESS_KEY`
+   - `GITHUB_APP_PRIVATE_KEY` (PEM private key)
+   - `JOB_ENCRYPTION_KEY` (base64 for exactly 32 random bytes)
+   - `OWNER_TOKEN_PEPPER` (long random secret)
+5. Set `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `R2_BUCKET`, `GITHUB_REPOSITORY`, `GITHUB_REF`, and `ALLOWED_ORIGIN` in `wrangler.toml`. The allowed origin must exactly match the secure frontend origin.
+6. Configure R2 bucket CORS to allow `PUT` from the secure frontend origin and allow the `Content-Type` request header.
+7. In GitHub repository settings, add Actions variable `SIGNHUB_BROKER_URL` equal to the Worker URL.
 
-Set the non-secret values in `wrangler.toml`: D1 database id, GitHub App id and installation id, allowed website origin, repository and ref. Configure R2 bucket CORS to allow PUT from the GitHub Pages origin and the deployed Worker origin, with Content-Type allowed.
+## GitHub App
+Install a GitHub App on this repository with repository **Actions: read/write** and **Metadata: read**. Store its private key only as the Worker secret `GITHUB_APP_PRIVATE_KEY`. Do not give the app broader permissions than needed.
 
-## GitHub repository configuration
-Add repository variable `SIGNHUB_BROKER_URL` with the deployed Worker URL. The workflow uses GitHub OIDC; it does not need a PAT. The GitHub App private key stays in the Worker.
+## Frontend
+Set `window.SIGNHUB_BROKER_URL` in the root `broker-config.js` to the deployed Worker URL. The existing SignHub layout is retained. The first secure path accepts local IPA/P12/profile uploads; direct URL imports, built-in app presets and tweak injection are intentionally rejected until their backend support is implemented safely.
 
-## Security model
-- Each job receives a random owner capability; only its hash is stored in D1.
-- Browser uploads go directly to R2 using short-lived presigned URLs; the Worker never proxies multi-gigabyte IPA bodies.
-- P12 password and job settings are encrypted with AES-GCM before being stored in R2.
-- A runner must present a GitHub OIDC token with the expected repository, ref, audience and workflow identity before it can claim or complete a job.
-- Inputs and outputs are under per-job random object keys. The scheduled cleanup removes job objects and database rows after 24 hours.
-- The result URL is a time-limited bearer URL. Anyone who receives that URL can access it until it expires; do not post it publicly.
+**Hosting note:** GitHub's Pages guidance says Pages should not be used for sensitive transactions such as sending passwords. For public launch, serve the existing static UI from Cloudflare Pages or another HTTPS host under your control, then set `ALLOWED_ORIGIN` and R2 CORS to that origin. Keep GitHub Pages as a source/demo page if desired.
 
-## Important implementation notes
-The current `signer.html` still targets the legacy NexSideloading API. Do not enter real certificates until the frontend is switched to this broker and the Worker has been deployed. The signing workflow currently implements the IPA + P12 + provisioning-profile Zsign path. Existing UI options for built-in apps and tweak injection require their own trusted asset/injection implementation and are not silently executed by this workflow. Direct IPA URL support also needs a separate SSRF-safe fetch stage before it can be enabled.
+## Signing workflow
+`.github/workflows/signhub-sign.yml` runs on `macos-14`, checks the runner's GitHub OIDC identity through the Worker, downloads only that job's files, signs with Zsign, uploads the IPA to private R2 and reports completion. The workflow does not publish certificates, passwords, IPA files or artifacts to GitHub.
+
+## Current limitations / pre-launch checklist
+- Test with a non-production certificate and test IPA before accepting real user material.
+- Validate the exact Zsign version and command behavior against your own IPA/certificate combination.
+- Configure Cloudflare edge rate limits and Turnstile/CAPTCHA before opening anonymous public intake to the internet. The Worker has a basic hashed-IP job creation throttle, not a full abuse-prevention system.
+- Verify the iOS OTA install flow on a real device. The manifest endpoint is a short-lived bearer capability URL, not account-authenticated access.
+- The current workflow implements IPA + P12 + provisioning profile only. URL fetching is deliberately disabled to avoid SSRF; tweak injection and built-in app handling remain disabled.
+- Keep the main branch protected and require review for workflow/Worker changes. Do not run untrusted pull-request code with production credentials.
