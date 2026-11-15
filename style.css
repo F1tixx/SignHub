@@ -106,3 +106,31 @@ details.fold.section-fold>summary{color:var(--text);font-weight:700;font-size:16
 .about a{color:var(--accent)}
 .about code{background:var(--field);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--text)}
 .about b{color:var(--text)}
+
+/* gate */
+html.gated body>main,html.gated .tabbar,html.gated #console{display:none!important}
+#gate{position:fixed;inset:0;z-index:100;background:var(--bg);overflow:auto;display:flex;padding:calc(28px + env(safe-area-inset-top,0px)) 16px calc(28px + env(safe-area-inset-bottom,0px))}
+.gate-box{margin:auto;width:100%;max-width:420px;text-align:center}
+.gate-icon{border-radius:20px;margin-bottom:18px}
+.gate-box h1{margin:0 0 8px;font-size:28px;letter-spacing:-.02em}
+.gate-box>p{color:var(--muted);margin:0 0 22px}
+.gate-steps{text-align:left;color:var(--muted);margin:22px 0 18px;padding-left:22px}
+.gate-steps li{margin-bottom:8px}
+.gate-steps b{color:var(--text)}
+.gate-box details{text-align:left}
+
+/* gate: hero fills the first screen, about section sits below the fold */
+#gate{display:block}
+.gate-hero{min-height:calc(100vh - 56px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));min-height:calc(100svh - 56px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));max-width:420px;margin:0 auto;display:flex;flex-direction:column;justify-content:center;text-align:center}
+.gate-hero h1{margin:0 0 8px;font-size:28px;letter-spacing:-.02em}
+.gate-hero>p{color:var(--muted);margin:0 0 22px}
+.gate-hero details{text-align:left}
+.gate-about{max-width:420px;margin:0 auto;padding:40px 0 8px;border-top:1px solid var(--line);color:var(--muted)}
+.gate-about h2{margin:0 0 10px;font-size:22px;color:var(--text)}
+.gate-about h3{margin:22px 0 8px;font-size:16px;color:var(--text)}
+.gate-about p{margin:0 0 10px}
+.gate-about ol{margin:0;padding-left:22px}
+.gate-about li{margin-bottom:6px}
+.gate-about b{color:var(--text)}
+.gate-about a{color:var(--accent)}
+.gate-continue{display:block;width:100%;margin-top:34px;background:none;border:1px solid var(--line);color:var(--muted)}
