@@ -18,6 +18,7 @@ crons = ["15 * * * *"]
 [vars]
 GITHUB_REPOSITORY = "suleyman13900/SignHub"
 GITHUB_REF = "refs/heads/main"
-GITHUB_APP_ID = "SET_AS_SECRET"
-GITHUB_APP_INSTALLATION_ID = "SET_AS_SECRET"
-ALLOWED_ORIGIN = "https://suleyman13900.github.io"
+R2_BUCKET = "signhub-private-jobs"
+GITHUB_APP_ID = "SET_ME"
+GITHUB_APP_INSTALLATION_ID = "SET_ME"
+ALLOWED_ORIGIN = "https://YOUR-SECURE-SITE.example"
