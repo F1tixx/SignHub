@@ -132,9 +132,11 @@ export default {
         const row=await env.DB.prepare("SELECT * FROM jobs WHERE id=?").bind(id).first();
         if(!row || row.state!=="done" || row.expires_at < Date.now()/1000 || !owner || await sha(owner+env.OWNER_TOKEN_PEPPER)!==row.owner_hash) return fail("Manifest not found",404,env);
         const ipa=await signedGet(env,`jobs/${id}/signed.ipa`,"signed.ipa");
+        const info=row.app_info_json ? JSON.parse(row.app_info_json) : {};
+        const esc=v=>String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
         const plist=`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>items</key><array><dict><key>assets</key><array><dict><key>kind</key><string>software-package</string><key>url</key><string>${ipa.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</string></dict></array><key>metadata</key><dict><key>bundle-identifier</key><string>com.signhub.signed</string><key>bundle-version</key><string>1.0</string><key>kind</key><string>software</string><key>title</key><string>Signed app</string></dict></dict></array></dict></plist>`;
+<plist version="1.0"><dict><key>items</key><array><dict><key>assets</key><array><dict><key>kind</key><string>software-package</string><key>url</key><string>${esc(ipa)}</string></dict></array><key>metadata</key><dict><key>bundle-identifier</key><string>${esc(info.bundle_id)}</string><key>bundle-version</key><string>${esc(info.bundle_version)}</string><key>kind</key><string>software</string><key>title</key><string>${esc(info.bundle_name || "Signed app")}</string></dict></dict></array></dict></plist>`;
         return new Response(plist,{headers:{...cors(env),"Content-Type":"application/xml","Cache-Control":"no-store"}});
       }
       if (path === "/internal/claim" && request.method === "POST") {
@@ -153,9 +155,10 @@ export default {
       }
       if (path === "/internal/finish" && request.method === "POST") {
         await verifyRunner(request,env);
-        const {job_id,state,error}=await request.json();
+        const {job_id,state,error,app_info}=await request.json();
         if(!job_id || !["done","failed"].includes(state)) return fail("Invalid completion",400,env);
-        await env.DB.prepare("UPDATE jobs SET state=?, error=? WHERE id=? AND state='running'").bind(state,error ? String(error).slice(0,500) : null,job_id).run();
+        await env.DB.prepare("UPDATE jobs SET state=?, error=?, app_info_json=? WHERE id=? AND state='running'")
+          .bind(state,error ? String(error).slice(0,500) : null,app_info ? JSON.stringify(app_info) : null,job_id).run();
         return json({ok:true},200,env);
       }
       return fail("Not found",404,env);
