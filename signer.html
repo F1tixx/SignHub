@@ -126,6 +126,7 @@
   'use strict';
 
   const BROKER_BASE = (window.SIGNHUB_BROKER_URL || '').replace(/\/$/, '');
+  const SIGNER_ORIGIN = BROKER_BASE;
   const MAX_IPA_SIZE = 5 * 1024 * 1024 * 1024;
 
   const $ = id => document.getElementById(id);
