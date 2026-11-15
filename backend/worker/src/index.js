@@ -120,7 +120,7 @@ export default {
         }
         return json(result,200,env);
       }
-      const manifestMatch=path.match(/^\\/v1\\/jobs\\/([A-Za-z0-9_-]+)\\/manifest$/);
+      const manifestMatch=path.match(/^\/v1\/jobs\/([A-Za-z0-9_-]+)\/manifest$/);
       if(manifestMatch && request.method==="GET") {
         const id=manifestMatch[1], owner=url.searchParams.get("token") || "";
         const row=await env.DB.prepare("SELECT * FROM jobs WHERE id=?").bind(id).first();
