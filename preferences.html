@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#10131a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Preferences · SignHub</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="apple-touch-icon" href="icon.png">
+  <script src="theme.js"></script>
+  <script src="gate.js"></script>
+</head>
+<body>
+<main>
+  <header class="hero"><h1>Preferences</h1><p>Settings for this device.</p></header>
+
+  <section class="panel">
+    <div class="row">
+      <div><b id="dark-label">Dark mode</b><span class="d">Dark is the default.</span></div>
+      <label class="switch"><input id="dark-toggle" type="checkbox" role="switch" aria-labelledby="dark-label"><span></span></label>
+    </div>
+    <div class="row">
+      <div><b>Version</b><span class="d">The release you are using.</span></div>
+      <span class="val" id="version">–</span>
+    </div>
+    <div class="row">
+      <div><b>Source code</b><span class="d">SignHub is open source.</span></div>
+      <a href="https://github.com/suleyman13900/SignHub" target="_blank" rel="noopener" style="color:var(--accent)">GitHub</a>
+    </div>
+  </section>
+</main>
+<div class="tabbar"><nav aria-label="Main"><a href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</a><a href="signer.html"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>Signer</a><a href="certificates.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 14L7 22l5-3 5 3-1.5-8"/></svg>Certificates</a><a href="dns.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg>DNS</a><a href="preferences.html" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 6h8M19 6h1M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15.5" cy="6" r="2.5"/><circle cx="9" cy="12" r="2.5"/><circle cx="17" cy="18" r="2.5"/></svg>Preferences</a></nav></div>
+<script src="version.js"></script>
+<script>
+(function () {
+  var toggle = document.getElementById('dark-toggle');
+  toggle.checked = window.SignHubTheme.get() !== 'light';
+  toggle.addEventListener('change', function () {
+    window.SignHubTheme.set(toggle.checked ? 'dark' : 'light');
+  });
+  document.getElementById('version').textContent = 'v' + (window.SIGNHUB_VERSION || '?');
+})();
+</script>
+</body>
+</html>
