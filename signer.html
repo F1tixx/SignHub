@@ -31,7 +31,7 @@
 
     <div class="section">
       <div class="section-title">Your signing certificate</div>
-      <div class="warning"><strong>Important:</strong> Use a certificate and provisioning profile you are authorized to use. The P12 password is sent to the signing service to process the certificate.</div>
+      <div class="warning"><strong>Important:</strong> Use a certificate and provisioning profile you are authorized to use. Your P12 and password are transferred to a temporary private signing job, processed on an isolated runner, and deleted after 24 hours.</div>
       <div class="grid">
         <div class="field"><label for="p12-file">P12 certificate file</label><input id="p12-file" type="file" accept=".p12"></div>
         <div class="field"><label for="prov-file">MobileProvision file</label><input id="prov-file" type="file" accept=".mobileprovision,.provisionprofile,.mobileprov"></div>
@@ -104,7 +104,7 @@
       <pre id="debug" class="hidden"></pre>
     </div>
   </section>
-  <p class="foot">This page uses the NexSideloading signing service. The service must permit requests from the domain hosting this file.</p>
+  <p class="foot">Private signing: your files are stored in a private job space and automatically deleted after 24 hours. Keep your install and download links private.</p>
 </main>
 
 <div id="console" aria-label="Console">
@@ -120,15 +120,12 @@
 
 <div class="tabbar"><nav aria-label="Main"><a href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Home</a><a href="signer.html" aria-current="page"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>Signer</a><a href="certificates.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 14L7 22l5-3 5 3-1.5-8"/></svg>Certificates</a><a href="dns.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg>DNS</a></nav></div>
 
-<script src="https://unpkg.com/tus-js-client/dist/tus.js"></script>
+<script src="broker-config.js"></script>
 <script>
 (() => {
   'use strict';
 
-  const SIGNER_BASE = 'https://sideloading.net/api/sign';
-  const SIGNER_ORIGIN = 'https://sideloading.net';
-  const TUS_ENDPOINT = `${SIGNER_BASE}/uploads/`;
-  const SIGN_ENDPOINT = `${SIGNER_BASE}/tus-sign`;
+  const BROKER_BASE = (window.SIGNHUB_BROKER_URL || '').replace(/\/$/, '');
   const MAX_IPA_SIZE = 5 * 1024 * 1024 * 1024;
 
   const $ = id => document.getElementById(id);
@@ -440,34 +437,59 @@
 
   async function submit() {
     const currentRun = ++runId; cleanup(); hideResult(); busy(true); progress(0);
-    lastBase = ''; lastPct = -100;
-    openConsole();
-    log('─── Sign started ───');
-    status('Preparing…');
+    lastBase = ''; lastPct = -100; openConsole(); log('─── Private signing job started ───');
     try {
+      if (!BROKER_BASE || !/^https:\/\//i.test(BROKER_BASE)) throw new Error('The SignHub broker is not configured yet. Set SIGNHUB_BROKER_URL in broker-config.js.');
       const builtIn = $('sideload-app').value;
-      const ipaFile = $('ipa-file').files[0];
-      const ipaUrl = $('ipa-url').value.trim();
-      if (builtIn && (ipaFile || ipaUrl)) throw new Error('Choose either a built-in app or an IPA file/URL, not both.');
-      if (!builtIn && !ipaFile && !ipaUrl) throw new Error('Choose an IPA file, enter an IPA URL, or select a built-in app.');
-      if (ipaFile && ipaUrl) throw new Error('Choose either an IPA file or an IPA URL, not both.');
-
-      if (builtIn || ipaUrl) {
-        status(builtIn ? `Preparing built-in app (${builtIn})…` : 'Sending IPA URL to signing service…');
-        progress(5);
-        await postSign(buildForm(null, null, ipaUrl), currentRun);
-      } else {
-        if (ipaFile.size > MAX_IPA_SIZE) throw new Error('IPA file exceeds the 5 GB limit.');
-        const uploadUrl = await tusUpload(ipaFile, ipaFile.name, currentRun);
+      const ipaFile = $('ipa-file').files[0], ipaUrl = $('ipa-url').value.trim();
+      const p12 = $('p12-file').files[0], p12Url = $('p12-url').value.trim();
+      const profile = $('prov-file').files[0], profileUrl = $('prov-url').value.trim();
+      if (builtIn) throw new Error('Built-in app signing is not enabled on the private broker yet.');
+      if (ipaUrl || p12Url || profileUrl) throw new Error('For security, this broker currently accepts local file uploads only. URL imports need a separate SSRF-safe fetch service.');
+      if (!ipaFile) throw new Error('Choose an IPA file.');
+      if (!p12 || !profile) throw new Error('Choose both your P12 certificate and MobileProvision file.');
+      if (ipaFile.size > MAX_IPA_SIZE) throw new Error('IPA file exceeds the 5 GB limit.');
+      if (selectedTweaks.length) throw new Error('Tweak injection is not enabled in this first secure signing workflow. Remove selected tweaks and retry.');
+      const password = getPassword();
+      if (!password) throw new Error('Enter the P12 password.');
+      const files = [{slot:'ipa',file:ipaFile},{slot:'p12',file:p12},{slot:'profile',file:profile}];
+      const response = await fetch(BROKER_BASE + '/v1/jobs', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({files:files.map(x=>({slot:x.slot,size:x.file.size,type:'application/octet-stream'}))})
+      });
+      if (!response.ok) throw new Error((await response.text()).slice(0,300) || 'Could not create a private signing job.');
+      const job = await response.json(), ownerToken = job.owner_token;
+      for (let i=0;i<files.length;i++) {
         if (currentRun !== runId) return;
-        status('Starting signing…');
-        await postSign(buildForm(uploadUrl, ipaFile.size, null), currentRun);
+        const item=files[i], target=job.uploads[item.slot];
+        status('Uploading ' + item.slot + '…'); progress((i/files.length)*55);
+        const put=await fetch(target.url,{method:'PUT',headers:{'Content-Type':'application/octet-stream'},body:item.file});
+        if(!put.ok) throw new Error('Upload failed for ' + item.slot + ' (HTTP ' + put.status + ').');
       }
+      progress(60); status('Submitting private signing job…');
+      const complete=await fetch(BROKER_BASE + '/v1/jobs/' + encodeURIComponent(job.job_id) + '/complete',{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+ownerToken},
+        body:JSON.stringify({p12_password:password,settings:{bundle_id:$('bundle-id').value.trim(),bundle_name:$('bundle-name').value.trim(),bundle_version:$('bundle-version').value.trim()}})
+      });
+      if(!complete.ok) throw new Error((await complete.text()).slice(0,300) || 'Could not queue the signing job.');
+      log('Private job queued: ' + job.job_id,'ok');
+      for(let attempt=0;attempt<540 && currentRun===runId;attempt++) {
+        await new Promise(resolve=>setTimeout(resolve,3000));
+        const check=await fetch(BROKER_BASE + '/v1/jobs/' + encodeURIComponent(job.job_id) + '/status',{headers:{'Authorization':'Bearer '+ownerToken},cache:'no-store'});
+        if(!check.ok) throw new Error('Could not read private job status (HTTP '+check.status+').');
+        const data=await check.json();
+        if(data.state==='failed') throw new Error(data.error || 'Signing failed.');
+        if(data.state==='done') {
+          progress(100); status('Done. IPA successfully signed.','ok');
+          showResult({install_url:data.install_url,download_url:data.download_url,job_id:data.job_id,expires_at:new Date(data.expires_at*1000).toLocaleString()});
+          return;
+        }
+        progress(data.state==='queued'?65:80); status(data.state==='queued'?'Waiting for a signing runner…':'Signing IPA…');
+      }
+      if(currentRun===runId) throw new Error('Signing is taking longer than expected. Keep this page open until the job finishes; the owner token is held only in this browser session.');
     } catch (error) {
-      if (currentRun === runId) { progress(0); status(`Error: ${friendlyError(error.message || error)}`, 'err'); }
-    } finally {
-      if (currentRun === runId) busy(false);
-    }
+      if (currentRun === runId) { progress(0); status('Error: ' + friendlyError(error.message || error), 'err'); }
+    } finally { if (currentRun === runId) busy(false); }
   }
 
   function resetAll() {
