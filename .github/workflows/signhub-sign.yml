@@ -98,7 +98,19 @@ jobs:
           TOKEN_JSON=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=signhub-worker")
           OIDC=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "$TOKEN_JSON")
           if [[ "${{ job.status }}" == "success" ]]; then STATE=done; else STATE=failed; fi
-          curl -fsS -X POST "$BROKER_URL/internal/finish" -H "Authorization: Bearer $OIDC" -H "Content-Type: application/json" --data "$(jq -n --arg id "$JOB_ID" --arg state "$STATE" '{job_id:$id,state:$state}')"
+          APP_INFO='{}'
+          if [[ "$STATE" == "done" ]]; then
+            APP_INFO=$(python3 - "${{ steps.sign.outputs.signed }}" <<'PY'
+import json, plistlib, sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z:
+    path = next(n for n in z.namelist() if n.startswith('Payload/') and n.endswith('.app/Info.plist'))
+    p = plistlib.loads(z.read(path))
+    print(json.dumps({'bundle_id':p.get('CFBundleIdentifier',''),'bundle_version':p.get('CFBundleVersion',''),'bundle_name':p.get('CFBundleDisplayName') or p.get('CFBundleName','Signed app')}))
+PY
+            )
+          fi
+          BODY=$(jq -n --arg id "$JOB_ID" --arg state "$STATE" --argjson app_info "$APP_INFO" '{job_id:$id,state:$state,app_info:$app_info}')
+          curl -fsS -X POST "$BROKER_URL/internal/finish" -H "Authorization: Bearer $OIDC" -H "Content-Type: application/json" --data "$BODY"
       - name: Remove temporary signing material
         if: always()
         run: |
