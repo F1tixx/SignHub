@@ -38,11 +38,9 @@ To sign and install an iOS application, you need:
 
 ## Backend
 
-SignHub uses a backend to handle the actual IPA signing process. The frontend communicates with the backend through the `/api/sign` endpoint.
+SignHub now includes a private signing broker integration and a GitHub Actions macOS signing workflow. The browser uploads files to private object storage; the workflow signs the IPA and returns a short-lived install/download link.
 
-The backend is responsible for signing the IPA and returning an installation URL.
-
-**Note:** The frontend alone does not sign applications. A working signing backend must be configured.
+The broker must be deployed and configured before signing works. See [backend/worker/README.md](backend/worker/README.md) for setup, required secrets, GitHub App permissions, privacy behavior and limitations.
 
 ## Security
 
