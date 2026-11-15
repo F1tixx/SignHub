@@ -1,0 +1,42 @@
+name: SignHub macOS signing-tool check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: signhub-zsign-build-check
+  cancel-in-progress: true
+
+jobs:
+  build-zsign:
+    name: Build Zsign on macOS
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - name: Check out SignHub
+        uses: actions/checkout@v4
+
+      - name: Check Xcode command-line tools
+        run: |
+          set -euo pipefail
+          xcode-select -p
+          clang --version
+          make --version
+
+      - name: Build Zsign
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/zhlynn/zsign.git "$RUNNER_TEMP/zsign"
+          cd "$RUNNER_TEMP/zsign"
+          make -j2
+          test -x ./zsign
+          file ./zsign
+          ./zsign --help > "$RUNNER_TEMP/zsign-help.txt" 2>&1 || true
+          test -s "$RUNNER_TEMP/zsign-help.txt"
+
+      - name: Remove build files
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/zsign" "$RUNNER_TEMP/zsign-help.txt"
