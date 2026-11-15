@@ -76,17 +76,23 @@ export default {
     try {
       if (path === "/v1/jobs" && request.method === "POST") {
         const body = await request.json();
-        if (!Array.isArray(body.files) || body.files.length < 3 || body.files.length > 12) return fail("Invalid file list",400,env);
+        if (!Array.isArray(body.files) || body.files.length < 3 || body.files.length > 11) return fail("Invalid file list",400,env);
         const allowed = new Set(["ipa","p12","profile", ...Array.from({length:8},(_,i)=>`tweak_${i}`)]);
+        const slots = body.files.map(f=>f.slot);
+        if (new Set(slots).size !== slots.length || !["ipa","p12","profile"].every(s=>slots.includes(s))) return fail("Each required file slot must appear exactly once",400,env);
+        const limits = {ipa:5*1024*1024*1024,p12:50*1024*1024,profile:20*1024*1024};
         const id = random(18), owner = random(32), expires = Math.floor(Date.now()/1000)+86400;
+        const ipHash = await sha((request.headers.get("CF-Connecting-IP") || "unknown") + env.OWNER_TOKEN_PEPPER);
+        const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM jobs WHERE client_hash=? AND created_at>?").bind(ipHash,Math.floor(Date.now()/1000)-3600).first();
+        if ((recent?.n || 0) >= 3) return fail("Rate limit reached. Try again in an hour.",429,env);
         const uploads = {};
         for (const f of body.files) {
-          if (!allowed.has(f.slot) || !Number.isSafeInteger(f.size) || f.size < 1 || f.size > 5*1024*1024*1024) return fail("Invalid upload slot or size",400,env);
+          if (!allowed.has(f.slot) || !Number.isSafeInteger(f.size) || f.size < 1 || f.size > (limits[f.slot] || 100*1024*1024)) return fail("Invalid upload slot or size",400,env);
           const objectKey = `jobs/${id}/input/${f.slot}`;
           uploads[f.slot] = { key:objectKey, url:await signedPut(env,objectKey,f.type || "application/octet-stream") };
         }
-        await env.DB.prepare("INSERT INTO jobs (id, owner_hash, state, created_at, expires_at, uploads_json) VALUES (?, ?, 'uploading', ?, ?, ?)")
-          .bind(id, await sha(owner+env.OWNER_TOKEN_PEPPER), Math.floor(Date.now()/1000), expires, JSON.stringify(uploads)).run();
+        await env.DB.prepare("INSERT INTO jobs (id, owner_hash, client_hash, state, created_at, expires_at, uploads_json) VALUES (?, ?, ?, 'uploading', ?, ?, ?)")
+          .bind(id, await sha(owner+env.OWNER_TOKEN_PEPPER), ipHash, Math.floor(Date.now()/1000), expires, JSON.stringify(uploads)).run();
         return json({ job_id:id, owner_token:owner, expires_at:expires, uploads },201,env);
       }
       const match = path.match(/^\/v1\/jobs\/([A-Za-z0-9_-]+)(?:\/(complete|status))?$/);
