@@ -58,9 +58,11 @@ jobs:
           git -C "$RUNNER_TEMP/zsign" remote add origin https://github.com/zhlynn/zsign.git
           git -C "$RUNNER_TEMP/zsign" fetch --depth 1 origin "$ZSIGN_COMMIT"
           git -C "$RUNNER_TEMP/zsign" checkout --detach FETCH_HEAD
-          make -C "$RUNNER_TEMP/zsign" -j2
-          test -x "$RUNNER_TEMP/zsign/zsign"
-          "$RUNNER_TEMP/zsign/zsign" --help > "$RUNNER_TEMP/zsign-help.txt" 2>&1 || true
+          brew install --quiet pkg-config openssl
+          make -C "$RUNNER_TEMP/zsign/build/macos" clean
+          make -C "$RUNNER_TEMP/zsign/build/macos" -j2
+          test -x "$RUNNER_TEMP/zsign/bin/zsign"
+          "$RUNNER_TEMP/zsign/bin/zsign" --help > "$RUNNER_TEMP/zsign-help.txt" 2>&1 || true
           test -s "$RUNNER_TEMP/zsign-help.txt"
       - name: Remove build files
         if: always()
