@@ -40,7 +40,7 @@ jobs:
 
   build-zsign:
     name: Build pinned Zsign on macOS
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 20
     env:
       ZSIGN_COMMIT: 9299685bab7ef99827e06e5dfda93af747386590

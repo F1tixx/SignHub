@@ -25,7 +25,7 @@ This repository is a fork of [suleyman13900/SignHub](https://github.com/suleyman
 
 - Cloudflare account with R2 and D1.
 - A GitHub App installed on **this fork** with `Actions: read/write` and `Metadata: read`.
-- A GitHub Actions macOS runner (`macos-14`).
+- A GitHub Actions macOS runner (`macos-15`).
 - A secure HTTPS origin for the static site. GitHub Pages is fine for a demo, but use your own HTTPS host for real password submissions.
 - Your own Apple signing certificate and provisioning profile.
 
