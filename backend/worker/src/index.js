@@ -138,12 +138,18 @@ async function appToken(env) {
   return (await r.json()).token;
 }
 
+function fullRef(env) {
+  const ref = env.GITHUB_REF || "refs/heads/main";
+  return ref.startsWith("refs/") ? ref : `refs/heads/${ref}`;
+}
+
 async function dispatch(env, jobId) {
   const token = await appToken(env);
+  const ref = fullRef(env).replace(/^refs\/(heads|tags)\//, "");
   const r = await fetch(`https://api.github.com/repos/${env.GITHUB_REPOSITORY}/actions/workflows/signhub-sign.yml/dispatches`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
-    body: JSON.stringify({ ref: env.GITHUB_REF || "main", inputs: { job_id: jobId } })
+    body: JSON.stringify({ ref, inputs: { job_id: jobId } })
   });
   if (!r.ok) throw new Error("GitHub workflow dispatch failed");
 }
@@ -156,7 +162,7 @@ async function verifyRunner(request, env) {
     issuer: "https://token.actions.githubusercontent.com", audience: "signhub-worker"
   });
   const repo = String(env.GITHUB_REPOSITORY || "").toLowerCase();
-  const ref = env.GITHUB_REF || "refs/heads/main";
+  const ref = fullRef(env);
   const workflow = `/.github/workflows/signhub-sign.yml@${ref}`.toLowerCase();
   if (!payload.run_id || String(payload.repository || "").toLowerCase() !== repo ||
       payload.ref !== ref || !String(payload.workflow_ref || "").toLowerCase().endsWith(workflow)) {

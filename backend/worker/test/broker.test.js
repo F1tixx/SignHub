@@ -18,7 +18,7 @@ const files = [
   { slot: "profile", size: 20 }
 ];
 
-let env, objects, dbRows, realSend;
+let env, objects, dbRows, realSend, dispatchBody;
 
 function makeEnv() {
   return {
@@ -143,6 +143,7 @@ beforeEach(() => {
   env.DB = makeDb();
   objects = new Map();
   dbRows = new Map();
+  dispatchBody = null;
   realSend = S3Client.prototype.send;
   S3Client.prototype.send = async function (command) {
     const input = command.input;
@@ -171,9 +172,12 @@ beforeEach(() => {
     }
     throw new Error(`Unexpected S3 command ${name}`);
   };
-  globalThis.fetch = async url => String(url).includes("/access_tokens")
-    ? new Response(JSON.stringify({ token: "app-token" }), { status: 200 })
-    : new Response(null, { status: 204 });
+  globalThis.fetch = async (url, options) => {
+    const target = String(url);
+    if (target.includes("/access_tokens")) return new Response(JSON.stringify({ token: "app-token" }), { status: 200 });
+    if (target.includes("/dispatches")) dispatchBody = JSON.parse(options.body);
+    return new Response(null, { status: 204 });
+  };
 });
 
 after(() => {
@@ -239,6 +243,8 @@ test("completion rejects a size mismatch and accepts a verified upload", async (
   const ok = await completeJob(data);
   assert.equal(ok.status, 202);
   assert.equal((await ok.json()).state, "queued");
+  assert.equal(dispatchBody.ref, "main");
+  assert.equal(dispatchBody.inputs.job_id, data.job_id);
 });
 
 test("only three jobs per client hash are allowed in an hour", async () => {
