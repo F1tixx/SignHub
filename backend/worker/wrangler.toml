@@ -8,15 +8,11 @@ binding = "DB"
 database_name = "signhub-jobs"
 database_id = "SET_AFTER_CREATING_D1"
 
-[[r2_buckets]]
-binding = "FILES"
-bucket_name = "signhub-private-jobs"
-
 [triggers]
 crons = ["15 * * * *"]
 
 [vars]
-GITHUB_REPOSITORY = "suleyman13900/SignHub"
+GITHUB_REPOSITORY = "F1tixx/SignHub"
 GITHUB_REF = "refs/heads/main"
 R2_BUCKET = "signhub-private-jobs"
 GITHUB_APP_ID = "SET_ME"

@@ -1,51 +1,78 @@
 # SignHub
 
-A simple web interface for signing and installing iOS applications.
+A small web interface for signing and installing iOS applications with **your own** signing certificate.
 
-SignHub provides a straightforward way to upload an IPA file, add your signing certificate and provisioning profile, and prepare the app for installation on an iPhone.
+This repository is a fork of [suleyman13900/SignHub](https://github.com/suleyman13900/SignHub), licensed under GPL-3.0. The original `LICENSE` is kept unchanged.
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/0cae63ea-4b28-454f-8d1b-3b5c6d8a16bc" width="240" alt="Home">
-  <img src="https://github.com/user-attachments/assets/192f3a72-61ce-4195-bd26-4197ab7e2c10" width="240" alt="Signer">
-</p>
+## What changed in this fork
 
-## Features
+- The signer talks only to a **self-hosted Cloudflare Worker broker**; it no longer sends certificates, IPAs or passwords to a third-party signing service.
+- The broker verifies uploaded object sizes, binds each job to one GitHub Actions run, checks that the signed IPA exists before marking a job done, and returns generic internal errors.
+- The signing workflow uses a pinned Zsign commit and always reports success or failure to the broker.
+- Broker logic has automated tests with no extra runtime dependencies.
+- URL imports, built-in apps and tweak injection remain disabled because the broker does not implement them safely.
 
-- **Import IPA** – Upload the iOS application you want to sign.
-- **Import certificate** – Provide your `.p12` signing certificate.
-- **Provisioning profile** – Upload the matching `.mobileprovision` file.
-- **Sign & Install** – Start the signing process and receive an installation link.
+## Flow
+
+1. Open `signer.html` over HTTPS.
+2. Choose an `.ipa`, `.p12` and `.mobileprovision` file, and provide the P12 password.
+3. The browser creates a job and uploads the three files directly to private R2 using short-lived presigned URLs.
+4. The worker encrypts the password and settings, then dispatches `signhub-sign.yml` on a macOS runner via a GitHub App.
+5. The runner presents its OIDC identity, downloads only that job's files, signs with Zsign, uploads the signed IPA to private R2 and reports the result.
+6. The browser polls job status and shows an `itms-services://` install link plus a direct download link.
 
 ## Requirements
 
-To sign and install an iOS application, you need:
+- Cloudflare account with R2 and D1.
+- A GitHub App installed on **this fork** with `Actions: read/write` and `Metadata: read`.
+- A GitHub Actions macOS runner (`macos-14`).
+- A secure HTTPS origin for the static site. GitHub Pages is fine for a demo, but use your own HTTPS host for real password submissions.
+- Your own Apple signing certificate and provisioning profile.
 
-- An `.ipa` application file.
-- A valid Apple signing certificate (`.p12`).
-- The password for your certificate.
-- A matching provisioning profile (`.mobileprovision`).
-- A configured signing backend.
+## Deploy
 
-## How it works
+1. Create an R2 bucket (`signhub-private-jobs`) and a D1 database (`signhub-jobs`). Put the D1 database ID in `backend/worker/wrangler.toml`.
+2. From `backend/worker`, run `npm install`, `npm run db:migrate` and `npm run deploy`.
+3. Set Worker secrets (never commit these):
+   - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
+   - `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY`
+   - `JOB_ENCRYPTION_KEY` (base64 of exactly 32 random bytes)
+   - `OWNER_TOKEN_PEPPER` (long random secret)
+4. In `wrangler.toml`, replace `ALLOWED_ORIGIN`, `GITHUB_APP_ID` and `GITHUB_APP_INSTALLATION_ID`. `GITHUB_REPOSITORY` already points to `F1tixx/SignHub`.
+5. Configure R2 CORS to allow `PUT` from the site origin and the `Content-Type` header.
+6. Set `window.SIGNHUB_BROKER_URL` in `broker-config.js` to the deployed Worker URL.
+7. Add an Actions variable `SIGNHUB_BROKER_URL` with the same Worker URL.
+8. Protect the `main` branch and require review for changes to the worker or workflows.
 
-1. Open SignHub in your browser.
-2. Select the IPA file you want to install.
-3. Upload your signing certificate.
-4. Enter the certificate password.
-5. Upload the provisioning profile.
-6. Press **Sign & Install**.
-7. Open the generated installation link on your iPhone.
+See [backend/worker/README.md](backend/worker/README.md) for details and limitations.
 
-## Backend
+## Development
 
-SignHub now includes a private signing broker integration and a GitHub Actions macOS signing workflow. The browser uploads files to private object storage; the workflow signs the IPA and returns a short-lived install/download link.
+Node 20 or newer is required.
 
-The broker must be deployed and configured before signing works. See [backend/worker/README.md](backend/worker/README.md) for setup, required secrets, GitHub App permissions, privacy behavior and limitations.
+```bash
+cd backend/worker
+npm install
+npm test
+```
 
-## Security
+`npm test` covers validation, ownership, rate limiting, upload-size checks, runner binding and manifest escaping. The macOS signing check also runs in CI.
 
-Signing certificates contain sensitive private-key information. Always use HTTPS and ensure certificate files and passwords are handled securely. Never expose signing credentials in client-side code or public repositories.
+## Smoke test before real use
 
-## Project
+1. Deploy the worker and configure every secret and variable above.
+2. Run the `SignHub checks` workflow; both jobs must pass.
+3. Sign a test IPA with a non-production certificate on a real iPhone in Safari.
+4. Confirm the install link and the direct download both work, then confirm a job is cleaned up after 24 hours.
 
-SignHub is designed to keep the signing process simple: upload, sign and install.
+## Limits
+
+- IPA 5 GB, P12 50 MB, provisioning profile 20 MB.
+- Three job creations per hashed IP per hour; add Cloudflare rate limiting/Turnstile before anonymous public intake.
+- Install links last 24 hours; direct download URLs last 1 hour.
+- No URL imports, tweak injection or built-in apps.
+- Live signing is **not** verified by the automated tests. Do not treat a passing test run as proof that an IPA installs on a device.
+
+## Security note
+
+Signing certificates contain private keys. The bundled certificate and DNS profiles are historical upstream assets; use certificates you are authorized to use. Never commit Worker secrets, P12 passwords or private keys.

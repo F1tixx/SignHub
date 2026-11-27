@@ -25,10 +25,9 @@
 
     <h3>How it works</h3>
     <ol>
-      <li>Open the <a href="signer.html">Signer</a> and choose your IPA file, or paste a direct IPA URL.</li>
-      <li>Add your <code>.p12</code> certificate and its password.</li>
-      <li>Add the matching <code>.mobileprovision</code> profile.</li>
-      <li>Optionally change the app's bundle ID, name or version, or add tweaks.</li>
+      <li>Open the <a href="signer.html">Signer</a> and choose your IPA file.</li>
+      <li>Add your <code>.p12</code> certificate, its password, and the matching <code>.mobileprovision</code> profile.</li>
+      <li>Optionally change the app's bundle ID, name or version.</li>
       <li>Press <b>Sign IPA</b>, then open the install link in Safari on your device.</li>
     </ol>
 
@@ -36,7 +35,7 @@
     <p>An <code>.ipa</code> file, a valid signing certificate with its password, and a matching provisioning profile. Don't have those? The <a href="certificates.html">Certificates</a> page has ready-made options, and the <a href="dns.html">DNS</a> page has DNS profiles.</p>
 
     <h3>Signing backend</h3>
-    <p>This site is only the interface. The actual signing is done by an external signing service, so your files and certificate password are sent to it. Only use certificates you are authorized to use, and never share your credentials publicly.</p>
+    <p>This site is only the interface. Signing is done by the self-hosted SignHub broker you configure in <code>broker-config.js</code>. Files go straight to your private object storage and the password is encrypted before storage. Only use certificates you are authorized to use, and never share your credentials publicly.</p>
 
     <h3>Open source</h3>
     <p>SignHub is open source. You can read the code, report issues or contribute on <a href="https://github.com/suleyman13900/SignHub" target="_blank" rel="noopener">GitHub</a>.</p>
