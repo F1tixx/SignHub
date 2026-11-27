@@ -58,6 +58,17 @@ npm test
 
 `npm test` covers validation, ownership, rate limiting, upload-size checks, runner binding and manifest escaping. The macOS signing check also runs in CI.
 
+## GitHub Pages demo
+
+The static UI is deployed automatically to **https://f1tixx.github.io/SignHub/** by [`.github/workflows/pages.yml`](.github/workflows/pages.yml). This is fine for a UI smoke test, but use a host you control for real password submissions (GitHub's own guidance warns against sensitive transactions on Pages).
+
+To test against your broker:
+
+1. Deploy the worker and set `ALLOWED_ORIGIN = https://f1tixx.github.io`.
+2. Allow `PUT` and the `Content-Type` header from that origin in R2 CORS.
+3. Set `window.SIGNHUB_BROKER_URL` in `broker-config.js` to the worker URL and push to `main`; Pages redeploys automatically.
+4. Open the Pages `signer.html` in a desktop browser. Until the broker is configured, the Console shows a configuration error instead of a network error.
+
 ## Smoke test before real use
 
 1. Deploy the worker and configure every secret and variable above.

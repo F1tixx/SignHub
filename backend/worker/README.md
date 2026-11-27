@@ -55,7 +55,7 @@ Only the `ipa`, `p12` and `profile` slots are accepted. Client-supplied content 
 
 ## Frontend hosting
 
-GitHub's guidance warns against sensitive transactions on GitHub Pages. For public launch, serve the static UI from Cloudflare Pages or another HTTPS host you control, then set `ALLOWED_ORIGIN` and R2 CORS to that origin. Keep GitHub Pages as a demo if desired.
+The fork's Pages workflow publishes the static UI at `https://f1tixx.github.io/SignHub/`. For that origin set `ALLOWED_ORIGIN = https://f1tixx.github.io` and allow `PUT` + `Content-Type` from it in R2 CORS. GitHub's guidance warns against sensitive transactions on GitHub Pages, so use Cloudflare Pages or another HTTPS host you control for public launch.
 
 ## Tests
 
