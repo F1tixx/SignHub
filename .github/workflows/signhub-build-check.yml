@@ -1,42 +1,69 @@
-name: SignHub macOS signing-tool check
-
+name: SignHub checks
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
 
 permissions:
   contents: read
 
 concurrency:
-  group: signhub-zsign-build-check
+  group: signhub-checks-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-zsign:
-    name: Build Zsign on macOS
-    runs-on: macos-14
-    timeout-minutes: 20
+  broker-tests:
+    name: Broker tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Check out SignHub
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/worker/package-lock.json
+      - name: Install broker dependencies
+        working-directory: backend/worker
+        run: npm ci --no-audit --no-fund
+      - name: Run broker tests
+        working-directory: backend/worker
+        run: npm test
+      - name: Static checks
+        run: |
+          set -euo pipefail
+          if grep -R -n -E 'sideloading\.net|unpkg\.com/tus-js-client|password\.length' signer.html; then
+            echo "Third-party signer or password-length logging found in signer.html"
+            exit 1
+          fi
 
+  build-zsign:
+    name: Build pinned Zsign on macOS
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      ZSIGN_COMMIT: 9299685bab7ef99827e06e5dfda93af747386590
+    steps:
       - name: Check Xcode command-line tools
         run: |
           set -euo pipefail
           xcode-select -p
           clang --version
           make --version
-
       - name: Build Zsign
         run: |
           set -euo pipefail
-          git clone --depth 1 https://github.com/zhlynn/zsign.git "$RUNNER_TEMP/zsign"
-          cd "$RUNNER_TEMP/zsign"
-          make -j2
-          test -x ./zsign
-          file ./zsign
-          ./zsign --help > "$RUNNER_TEMP/zsign-help.txt" 2>&1 || true
+          git init "$RUNNER_TEMP/zsign"
+          git -C "$RUNNER_TEMP/zsign" remote add origin https://github.com/zhlynn/zsign.git
+          git -C "$RUNNER_TEMP/zsign" fetch --depth 1 origin "$ZSIGN_COMMIT"
+          git -C "$RUNNER_TEMP/zsign" checkout --detach FETCH_HEAD
+          brew install --quiet pkg-config openssl
+          make -C "$RUNNER_TEMP/zsign/build/macos" clean
+          make -C "$RUNNER_TEMP/zsign/build/macos" -j2
+          test -x "$RUNNER_TEMP/zsign/bin/zsign"
+          "$RUNNER_TEMP/zsign/bin/zsign" --help > "$RUNNER_TEMP/zsign-help.txt" 2>&1 || true
           test -s "$RUNNER_TEMP/zsign-help.txt"
-
       - name: Remove build files
         if: always()
         run: rm -rf "$RUNNER_TEMP/zsign" "$RUNNER_TEMP/zsign-help.txt"

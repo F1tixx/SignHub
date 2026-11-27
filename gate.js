@@ -34,7 +34,7 @@
     '<p>SignHub is a simple web interface for signing and installing iOS apps. Upload an IPA, add your own signing certificate and provisioning profile, and get an install link for your iPhone or iPad.</p>' +
     '<p>The site also has ready-to-use certificates and a DNS profile that helps keep your sideloaded apps from being revoked.</p>' +
     '<h3>How it works</h3>' +
-    '<ol><li>Choose your IPA file or paste a direct link.</li>' +
+    '<ol><li>Choose your IPA file.</li>' +
     '<li>Add your certificate, its password and your provisioning profile.</li>' +
     '<li>Tap <b>Sign IPA</b>, then open the install link in Safari.</li></ol>' +
     '<h3>Open source</h3>' +

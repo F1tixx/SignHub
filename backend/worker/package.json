@@ -2,11 +2,18 @@
   "name": "signhub-secure-broker",
   "private": true,
   "type": "module",
-  "scripts": { "deploy": "wrangler deploy", "db:migrate": "wrangler d1 migrations apply signhub-jobs --remote" },
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply signhub-jobs --remote",
+    "test": "node --test"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.850.0",
     "@aws-sdk/s3-request-presigner": "^3.850.0",
     "jose": "^6.0.12"
   },
-  "devDependencies": { "wrangler": "^4.30.0" }
+  "devDependencies": {
+    "wrangler": "^4.30.0"
+  }
 }
